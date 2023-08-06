@@ -1,0 +1,1 @@
+Get-Process | Sort-Object -Property 'CPU' -Descending | Where-Object { $_.CPU -gt 100 } | Out-File -FilePath .\output.log

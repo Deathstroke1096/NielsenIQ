@@ -1,0 +1,6 @@
+name-rg = "nielsen-rg"
+location-rg = "UK South"
+sqlservername = "nielsenazserver"
+fe-asp-name = "fe-asp-dev"
+be-asp-name = "be-asp-dev"
+fe-webapp-name = "nielsenfedemo"

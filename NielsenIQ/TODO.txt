@@ -1,0 +1,11 @@
+Assignment 1: Azure DevOps Pipeline for a 3-Tier Application
+You are tasked with setting up a Continuous Integration and Continuous Deployment (CI/CD) pipeline on
+Azure DevOps for a 3-tier application consisting of a front-end web app, an application server, and a database.
+The web app is built using .NET Core.
+Requirements:
+1. Create a version-controlled repository for the application code and infrastructure code.
+2. Set up an Azure DevOps pipeline that automatically builds the .NET Core web app.
+3. Create a staging environment in Azure using Terraform or ARM templates, including the necessary
+infrastructure (virtual machines, networking, etc.).
+4. Implement a deployment strategy that deploys the application to the staging environment and performs
+automated testing.

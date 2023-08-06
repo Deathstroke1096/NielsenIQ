@@ -1,0 +1,130 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+#We will use checkov for static code analysis
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+name: $(BuildDefinitionName)_$(date:yyyyMMdd)$(rev:.r)
+
+trigger: none
+
+
+variables:
+ - name: 'serviceconnection'
+   value: 'nielsen-sc'
+
+ - name: 'environment'
+   value: 'dev'
+
+ - name: 'backend_rg'
+   value: 'terraform-backend'
+
+ - name: 'backend_storageaccount'
+   value: 'terraformonazure2023'
+
+ - name: 'backend_container'
+   value: 'terraform'
+
+ - name: 'backendkey_tfstate'
+   value: 'terraform.tfstate'
+
+ - name: 'working_directory'
+   value: '$(System.DefaultWorkingDirectory)'
+
+
+
+pool:
+  vmImage: ubuntu-latest
+
+stages :
+  - stage: "runCheckov"
+    displayName: "Checkov: Static Code Analysis"
+    jobs:
+      - job: "runCheckov"
+        displayName: "Checkov > Pull, run and publish results of Checkov scan"
+        steps:
+        - task: Bash@3
+          inputs:
+            targetType: 'inline'
+            script: 'pip install checkov'
+            displayName: Install checkov
+        - task: Bash@3
+          inputs:
+            targetType: 'inline'
+            workingDirectory: $(working_directory)
+            script: 'checkov -d . -o junitxml > scan-result.xml --soft-fail'
+            displayName: Checkov source code scan
+            continueOnError: true
+        - task: PublishTestResults@2
+          inputs:
+            testResultsFormat: 'JUnit'
+            searchFolder: '$(working_directory)'
+            testResultsFiles: '**/*scan-result.xml'
+            mergeTestResults: false
+            testRunTitle: Terraform source code scan
+            failTaskOnFailedTests: false
+            publishRunAttachments: true
+            displayName: Publish Test Result
+
+  - stage: validate
+    displayName : 'Terraform Validate'
+    jobs:
+    - job: validate
+      continueOnError: false
+      steps:
+      - task: TerraformInstaller@0
+        displayName: 'install'
+        inputs:
+          terraformVersion: 'latest'
+      - task: TerraformTaskV2@2
+        displayName: 'init'
+        inputs:
+          provider: 'azurerm'
+          command: 'init'
+          backendServiceArm: $(serviceconnection)
+          backendAzureRmResourceGroupName: '$(backend_rg)'
+          backendAzureRmStorageAccountName: $(backend_storageaccount)
+          backendAzureRmContainerName: $(backend_container)
+          backendAzureRmKey: $(backendkey_tfstate)
+          workingDirectory: '$(working_directory)'
+      - task: TerraformTaskV2@2
+        displayName: 'validate'
+        inputs:
+          provider: 'azurerm'
+          command: 'validate' 
+
+  - stage: Plan_Apply_dev
+    dependsOn: [validate]
+    condition: succeeded('validate')
+    displayName: Plan_Apply_dev
+    jobs:
+      - deployment: 'Approval_Apply_Stage'
+        displayName: 'Approval gate for this stage'
+        environment: 'dev'
+      - job: plan
+        displayName: 'Terraform_plan_dev'
+        continueOnError: false
+        steps:
+        - task: TerraformInstaller@0
+          displayName: 'install'
+          inputs:
+           terraformVersion: 'latest'
+        - task: TerraformTaskV2@2
+          displayName: init
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            backendServiceArm: $(serviceconnection)
+            backendAzureRmResourceGroupName: '$(backend_rg)'
+            backendAzureRmStorageAccountName: $(backend_storageaccount)
+            backendAzureRmContainerName: $(backend_container)
+            backendAzureRmKey: $(backendkey_tfstate)
+            workingDirectory: '$(working_directory)'
+        - task: TerraformTaskV2@2
+          displayName: plan
+          inputs:
+            provider: 'azurerm'
+            command: 'plan'
+            commandOptions: '-var-file="config.tfvars" -out main.tfplan'
+            environmentServiceNameAzureRM: $(serviceconnection)
+            workingDirectory: '$(working_directory)'
